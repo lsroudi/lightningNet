@@ -1,7 +1,5 @@
 mod node;
-
-use node::config::{NodeConfig};
-use node::types::{NodeType};
+use node::{NodeConfig, NodeType, LightningNode};
 use std::net::SocketAddr;
 
 fn main() {
@@ -17,4 +15,21 @@ fn main() {
     println!("Node type: {:?}", config.node_type);
     println!("Port: {}", config.port());
     println!("Is public: {}", config.is_public());
+
+    let mut node = LightningNode::new(config);
+    // Test node operations
+    match node.start() {
+        Ok(()) => println!("✅ Node started successfully"),
+        Err(e) => println!("❌ Failed to start node: {}", e),
+    }
+    
+    // Check status
+    let status = node.get_status();
+    println!("📊 Node status: {:?}", status);
+    
+    // Test stopping
+    match node.stop() {
+        Ok(()) => println!("✅ Node stopped successfully"),
+        Err(e) => println!("❌ Failed to stop node: {}", e),
+    }
 }

@@ -1,5 +1,6 @@
 
 use super::config::{NodeConfig};
+use super::types::{NodeType};
 use std::net::SocketAddr;
 use std::collections::HashMap;
 
@@ -21,7 +22,7 @@ pub struct NodeStatus {
 }
 
 impl LightningNode {
-    pub fn new(config: NodeConnfig)->Self{
+    pub fn new(config: NodeConfig)->Self{
         Self{
             config,
             active_connections: HashMap::new(),
@@ -33,7 +34,7 @@ impl LightningNode {
     pub fn start(&mut self)->Result<(), String>{
 
         if self.is_running{
-            return Err("Node is already running".to_string);
+            return Err("Node is already running".to_string());
         }
 
         self.is_running = true;
@@ -43,10 +44,10 @@ impl LightningNode {
 
     }
 
-    pub fn stop(&mut self)->Result<((),String)>{
+    pub fn stop(&mut self)->Result<(),String>{
         
         if !self.is_running{
-            return Err("Node is already stopped".to_string);
+            return Err("Node is already stopped".to_string());
         }
 
         self.is_running = false;
