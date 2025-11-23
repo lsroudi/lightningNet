@@ -1,6 +1,7 @@
 mod node;
 
-use node::config::{NodeConfig,NodeType};
+use node::config::{NodeConfig};
+use node::types::{NodeType};
 use std::net::SocketAddr;
 
 fn main() {
@@ -13,4 +14,7 @@ fn main() {
         NodeType::Entry);
 
     println!("The node config created {:?}", config);    
+    println!("Node type: {:?}", config.node_type);
+    println!("Port: {}", config.port());
+    println!("Is public: {}", config.is_public());
 }

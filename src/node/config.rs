@@ -1,19 +1,13 @@
 use std::net::SocketAddr;
+use super::types::{NodeType};
 
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum NodeType {
-    Entry,
-    Middle,
-    Exit,
-    Relay,
-}
 // Define the main configuration structure
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NodeConfig {
 
     pub node_id: String,
-    pub listen_address: SocketAddr ,
+    pub listen_address: SocketAddr,
     pub node_type: NodeType,
     pub max_connections: usize,
     pub public_address: Option<SocketAddr>,
