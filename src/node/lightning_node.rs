@@ -3,12 +3,30 @@ use super::config::{NodeConfig};
 use super::types::{NodeType};
 use std::net::SocketAddr;
 use std::collections::HashMap;
+use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::mpsc;
 
-
+#[derive(Debug, Clone)]
+pub enum NetworkMessage {
+    Ping {nonce: u64},
+    Pong {nonce: u64},
+    PeerAdvertisment {
+        node_id: String,
+        address: SocketAddr,
+        node_type: String,
+    },
+}
+#[derive(Debug, Clone)]
+pub struct Circuit{
+    id: u32,
+    route:Vec<SocketAddr>,
+    established: bool,
+    created_at: std::time::Instant,
+}
 pub struct LightningNode {
     config: NodeConfig,
-    active_connections: HashMap<SocketAddr,()>,
-    circuits: HashMap<u32,()>,
+    active_connections: HashMap<SocketAddr,mpsc::Sender<()>>,
+    circuits: HashMap<u32,Circuit>,
     is_running: bool,
 }
 
