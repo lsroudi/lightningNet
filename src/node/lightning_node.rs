@@ -27,6 +27,7 @@ pub struct LightningNode {
     config: NodeConfig,
     active_connections: HashMap<SocketAddr,mpsc::Sender<()>>,
     circuits: HashMap<u32,Circuit>,
+    listener: Option<TcpListener>,
     is_running: bool,
 }
 
@@ -49,15 +50,30 @@ impl LightningNode {
         }
     }
 
-    pub fn start(&mut self)->Result<(), String>{
+    pub async fn start(&mut self)->Result<(), String>{
 
         if self.is_running{
             return Err("Node is already running".to_string());
         }
 
+        println!("Starting LightningNode: {}", self.config.node_id);
+
+        let listener = TcpListener::bind(&self.config.listen_address)
+            .await
+            .map_err(|e| format!("Failed to bind to {}: {}", self.config.listen_address, e))?;
+
+            let actual_address = listener.local_addr()
+            .map_err(|e| format!("Failed to get local address: {}", e))?;
+
+        println!("Node listening on: {}", actual_address);
+
+        self.listener = Some(listener);
+
         self.is_running = true;
 
-        println!("Node {} started successfully", self.config.node_id);
+        // Start accepting connections
+        self.accept_connections().await?;
+
         Ok(())
 
     }
