@@ -38,12 +38,14 @@ pub struct NodeStatus {
     pub connections: usize,
     pub circuits: usize,
     pub node_type: NodeType,
+    pub listen_address: SocketAddr,
 }
 
 impl LightningNode {
     pub fn new(config: NodeConfig)->Self{
         Self{
             config,
+            listener:None,
             active_connections: HashMap::new(),
             circuits: HashMap::new(),
             is_running: false,
@@ -93,6 +95,77 @@ impl LightningNode {
         Ok(())
     }
 
+    async fn accept_connections(&mut self)->Result<(),String>{
+
+        let listener = self.listener
+            .as_ref()
+            .ok_or("Listener not initialized".to_string())?;
+
+        while self.is_running {
+
+            match listener.accept().await {
+
+                Ok((stream,addr)) => {
+                    println!("New connection from: {}", addr);
+                    
+                    tokio::spawn(async move {
+                        if let Err(e) = Self::handle_connection(stream, addr).await {
+                            println!("Connection handler error: {}", e);
+                        }
+                    });
+                }
+                
+                Err(e) => {
+                    println!("Accept connection error: {}", e);
+                }
+            }           
+        }
+
+        Ok(())
+    }
+
+    async fn handle_connection(mut stream: TcpStream, addr: SocketAddr) -> Result<(), String>{
+
+        println!("Handling connection from: {}", addr);
+        
+        // For now, just send a welcome message
+        let welcome_msg = format!("Welcome to LightningNet! Connected from: {}\n", addr);
+        stream.writable().await
+            .map_err(|e| format!("Stream not writable: {}", e))?;
+            
+        stream.try_write(welcome_msg.as_bytes())
+            .map_err(|e| format!("Failed to write welcome message: {}", e))?;
+
+        // Keep the connection open for a bit to demonstrate
+        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        
+        println!("Connection from {} closed", addr);
+        Ok(())
+
+    }
+
+    pub async fn connect_to_node(&mut self, address: SocketAddr) -> Result<(), String> {
+        println!("Connecting to node at: {}", address);
+        
+        let stream = TcpStream::connect(address)
+            .await
+            .map_err(|e| format!("Failed to connect to {}: {}", address, e))?;
+        
+        println!("Connected to node at: {}", address);
+        
+        // Store the connection (simplified for now)
+        self.active_connections.insert(address, mpsc::channel(32).0);
+        
+        // Handle the connection
+        tokio::spawn(async move {
+            if let Err(e) = Self::handle_connection(stream, address).await {
+                println!("Outgoing connection error: {}", e);
+            }
+        });
+
+        Ok(())
+    }
+
     pub fn get_status(&self) -> NodeStatus {
         NodeStatus {
             node_id: self.config.node_id.clone(),
@@ -100,6 +173,7 @@ impl LightningNode {
             connections: self.active_connections.len(),
             circuits: self.circuits.len(),
             node_type: self.config.node_type.clone(),
+            listen_address: self.config.listen_address,
         }
     }
 }
