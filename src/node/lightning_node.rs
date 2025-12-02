@@ -52,35 +52,59 @@ impl LightningNode {
         }
     }
 
-    pub async fn start(&mut self)->Result<(), String>{
-
-        if self.is_running{
+    pub async fn start(&mut self) -> Result<(), String> {
+        if self.is_running {
             return Err("Node is already running".to_string());
         }
-
+        
         println!("Starting LightningNode: {}", self.config.node_id);
-
+        
+        // Bind to the configured address
         let listener = TcpListener::bind(&self.config.listen_address)
             .await
             .map_err(|e| format!("Failed to bind to {}: {}", self.config.listen_address, e))?;
-
-            let actual_address = listener.local_addr()
+        
+        let actual_address = listener.local_addr()
             .map_err(|e| format!("Failed to get local address: {}", e))?;
-
+        
         println!("Node listening on: {}", actual_address);
-
         self.listener = Some(listener);
-
         self.is_running = true;
 
-        // Start accepting connections
-        self.accept_connections().await?;
-
+        // Start accepting connections in background task
+        let listener_clone = self.listener.clone().unwrap();
+        let node_id = self.config.node_id.clone();
+        
+        tokio::spawn(async move {
+            if let Err(e) = Self::accept_connections_background(listener_clone, node_id).await {
+                println!("Accept connections error: {}", e);
+            }
+        });
+        
         Ok(())
-
     }
 
-    pub fn stop(&mut self)->Result<(),String>{
+    /// Background task for accepting connections
+    async fn accept_connections_background(listener: TcpListener, node_id: String) -> Result<(), String> {
+        loop {
+            match listener.accept().await {
+                Ok((stream, addr)) => {
+                    println!("[{}] New connection from: {}", node_id, addr);
+                    
+                    tokio::spawn(async move {
+                        if let Err(e) = Self::handle_connection(stream, addr).await {
+                            println!("[{}] Connection handler error: {}", node_id, e);
+                        }
+                    });
+                }
+                Err(e) => {
+                    println!("[{}] Accept connection error: {}", node_id, e);
+                }
+            }
+        }
+    }
+
+    pub async fn stop(&mut self)->Result<(),String>{
         
         if !self.is_running{
             return Err("Node is already stopped".to_string());
@@ -140,8 +164,8 @@ impl LightningNode {
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         
         println!("Connection from {} closed", addr);
-        Ok(())
 
+        Ok(())
     }
 
     pub async fn connect_to_node(&mut self, address: SocketAddr) -> Result<(), String> {
